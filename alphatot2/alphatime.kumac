@@ -1,0 +1,581 @@
+MACRO alphatime
+| JQ 950630 
+| PAW script which cuts parameterised .rz files(pairs only, no tracking)
+| Based on Jim Buckleys alphatot.kumac but with severeal differences-
+| mainly the use of selectyion functions and duration matching.
+| The script matches durations carefully, but is slow as this requires 2
+| passes through the ntuple chain. The run-by-run durations are calculated
+| for each on/off pair and each pair is cut to the smaller of that pair.
+| Requires pawon and pawoff kumacs which generate chains and return into
+| vectors inonn and inoff the number of pairs. The selection function
+| for the first pass is durations.f and for the second pass is cut_time.f
+| Modified (JQ 950704) so that it uses selection functions from the directory
+| /data5/quinn/paw/uwfunc/analyse3 and this directory is pointed to by 
+| the variable [comisdir]
+
+comisdir='/data5/quinn/paw/uwfunc/analyze3/'    |Home dir for sel. functions.
+
+| Define cuts (note if any new cuts are added or any are removed then the 
+| cut selection function (in directory [comisdir]) cut_time.f, the comis
+| routine for writing the start of the pawtab.out file and the routine which
+| prints the text on the picture (in this macro) must also be edited.
+
+vec/cre dist(2) r 0.51 1.1
+vec/cre width(2) r 0.073 0.15
+vec/cre length(2) r 0.16 0.3
+vec/cre size(1) r 400.           |cut to size > this value.
+vec/cre trig(2) r 45. 45.
+vec/cre nbr3(1) r 0.5            | >0 means this cut is 'on'
+vec/cre alpha(1) r 10.           |in degrees.
+sigma sinalp=sin(alpha(1)*pi/180)
+
+
+vec/cre cv(11) r dist(1) dist(2) width(1) width(2) length(1) length(2) _
+	size(1) trig(1) trig(2) nbr3(1) sinalp(1)
+
+
+cut1=$eval(dist(1))"L# Distance "L#$eval(dist(2))
+cut2=$eval(width(1))"L# Width "L#$eval(width(2))
+cut3=$eval(length(1))"L# Length "L#$eval(Length(2))
+cut4=Size "G#$eval(size(1))
+cut5=1/91"G#$eval(trig(1)), 2/91"G#$eval(trig(2))
+cut6=Nbr3 "G#$eval(nbr3(1))
+cut7=[a]"L#$eval(alpha(1))^o!
+
+opt nbox             | no box around plot
+opt a4
+opt linx
+opt liny
+set mtyp 1          | marker type
+set xlab 1.5        | dist label to y-axis (default = 1.4)
+set asiz 0.28	 | axis label size (default = 0.28)
+set XMGL 3.0        | Margins (defualt = 2.0)	
+set XMGR 2.0
+set YMGL 2.0
+set YMGU 3.0
+opt linx
+opt liny
+opt nsta
+set HTYP 0
+zon 2 3 
+h/del *
+
+
+for/file 1 'cuton.tmp' 
+for/file 2 'cutoff.tmp'
+vec/cre non(1) i 0        |no. of on runs.
+vec/cre noff(1) i 0       | no. of off runs.
+
+inon = 0
+inoff = 0
+
+CHAIN -
+IF [#] > 0 THEN
+  DO i=1,[#],2
+    IF [%i] <> 'none' THEN
+      CHAIN allon [%i].rz
+      inon = [inon] + 1
+    ENDIF
+  ENDDO
+ELSE
+  exec pawon.kumac
+  inon = non		| This is a way of using a scaler to pass
+                           | a variable to a macro, and return a var.
+ENDIF
+
+IF [#] > 0 THEN
+  DO i=2,[#],2
+    IF [%i] <> 'none' THEN
+      CHAIN allof [%i].rz
+      inoff = [inoff] + 1
+    ENDIF
+  ENDDO
+  title 'Alpha for runs"J#'//[*]
+ELSE
+  exec pawoff.kumac
+  inoff = noff
+  title 'Alpha for '//[inon]//' on, '//[inoff]//' off runs'
+ENDIF
+
+message [inon]//' ON runs'
+message [inoff]//' OFF runs'
+if [inon].ne.[inoff] then
+	message 'Number of OFF runs does not match number of ON runs.'
+	message 'Exiting macro...'
+	goto end
+endif
+
+vec/cre npairs(1) i [inon]
+np=[inon]
+
+vec/cre ondurs([np]) r 	          |vector containing durations of 'on' runs
+vec/cre offdurs([np]) r 	  |vector containing durations of 'off' runs
+vec/cre durs([np]) r	          |vector containing durations of runs
+				  |Using real for time means can hold
+				  |166,666 mins (over 5,000 30 min runs) 
+				  |to within 1 sec accuracy
+				
+vec/cre stats(2,7) i		  |vector containing raw,nbr3,trigger,shape
+				  |shape20-90,orientation & gammas for on
+		   		  |& off. (1,:) is on and (2,:) is off.
+				  |Using integer for these vectors means
+				  |we can store 999,999,999 events 
+                                  |(over 11,000 runs at 50 Hz). If we had 
+                                  |used real for the vector type we could 
+                                  |only have stored the events for 111 
+                                  |runs (at 50Hz.). The drawback is that 
+                                  |SIGMA will not work on integervectors 
+                                  |(SIGMA is crap anyway) so a fortran
+				  |function will have to be written to do 
+				  |calculations of significances. 
+vec/cre sigmas(7) r
+
+
+cd //allon
+message 'First pass - Calculating run durations for ON.'
+chain allon>
+nt/loop 100 [comisdir]durations.f(1)   |Using convention that 1 means 'ON' data
+vec/copy durs ondurs		 |and 2 means 'OFF' data.
+
+cd //allof
+message ' '
+message ' '
+message ' '
+message 'First pass - Calculating run durations for OFF.'
+chain allof>
+nt/loop 100 [comisdir]durations.f(2)
+vec/copy durs offdurs
+
+sigma durs=min(ondurs,offdurs)
+sigma tduron=vsum(ondurs)	        |Wanted to call these totduron...
+sigma tduroff=vsum(offdurs)		|but sigma will not work with names
+sigma tdurcut=vsum(durs)       		|of length > 7 character!
+
+
+message ' '
+tmp=tduron(1)
+message 'Total duration of ON: '//[tmp]//' seconds.'
+tmp=tduroff(1)
+message 'Total duration of OFF: '//[tmp]//' seconds.'
+tmp=tdurcut(1)
+message 'Total duration after cutting to ON/OFF minimum times:'_
+         [tmp]//' seconds.'
+
+
+picture/create palph
+h/cr/1d  1  'on data ' 18 0.0 90.0 
+h/cr/1d  2  'off data ' 18 0.0 90.0 
+h/cr/1d  50  'on-off ' 18 0.0 90.0 
+h/cr/1d  60  'on+off ' 18 0.0 90.0 
+h/cr/1d  70  'integral excess ' 18 0.0 90.0 
+h/cr/1d  80  'integral significance ' 18 0.0 90.0 
+v/cr dif(18)
+v/cr sum(18)
+v/cr on(18)
+v/cr intsum(18)
+v/cr intdif(18)
+v/cr intsig(18) R
+v/cr results(15) R
+v/cr ontime(2) R
+v/cr off(18)
+
+v/cre temp(14) r
+v/cre bothon(1) r
+v/cre bothof(1) r
+ 
+
+IF [inon] > 0 THEN
+  MESSAGE ' '
+  MESSAGE ' '
+  MESSAGE '2nd pass - Cutting ON runs'
+  CHAIN allon>
+  CD //allon
+  nt/loop 100 [comisdir]cut_time.f(1.)     |it appears can only pass real vars
+ENDIF                                  |to selction functions.
+
+
+IF [inoff] > 0 THEN
+  MESSAGE ' '
+  MESSAGE ' '
+  MESSAGE '2nd pass - Cutting OFF runs'
+  CHAIN allof>
+  CD //allof
+  nt/loop 100 [comisdir]cut_time.f(2.)
+ENDIF
+
+call [comisdir]calc_sigs.f
+
+h/op/sub 1 2 50 1.0 1.0		| Histogram 50 is on-off
+h/op/add 1 2 60 1.0 1.0		| Histogran 60 is on+off
+ 
+h/get/cont 50 dif		| Get contents of histograms intop vectors
+h/get/cont 60 sum			
+h/get/cont 1 on
+h/get/cont 2 off               |JQ 950426		
+ 
+
+* xn = [#]/2
+* vec/input ontime [xn] 0.0
+vec/input ontime [inon] [inoff]
+ 
+APPLIcation COMIS QUIT 
+            SUBROUTINE LOOP
+            Vector dif
+            Vector sum
+            Vector intdif
+            Vector intsum
+            Vector intsig
+            Vector results
+            Vector on
+            Vector ontime
+	    Vector tdurcut
+	    Vector stats
+	    Vector sigmas
+ 
+	    ngam=stats(1,7)-stats(2,7)
+	    results(1)=ngam/(tdurcut(1)/60.0)
+	    results(2)=sigmas(7)/SQRT(ontime(1))
+	    results(3)=ngam
+	    results(4)=sigmas(7)
+
+            xsum = 0.
+            xdif = 0.
+            xonmax = 0.
+            intdif(1) = dif(1)
+            intsum(1) = sum(1)
+            do 10 i=2,18
+              intsum(i) = intsum(i-1)+sum(i)
+              intdif(i) = intdif(i-1)+dif(i)
+            enddo
+   10       continue 
+            do 20 i=1,18
+              if(on(i).gt.xonmax) then
+                xonmax = on(i)
+              endif
+              if(intsum(i).gt.0.) then
+                xarg = sqrt(intsum(i))
+                if(xarg.gt.0.) then
+                  intsig(i) = intdif(i)/xarg
+                else
+                  intsig(i) = 0.
+                endif
+              else
+                intsig(i) = 0.
+              endif
+            enddo
+   20       continue 
+            results(5) = xonmax*1.3
+            results(6) = xonmax*1.24
+            results(7) = xonmax*1.18
+            results(8) = xonmax*1.12
+            results(9) = xonmax*1.06
+            results(10) = xonmax*1.00
+            end
+            call loop
+            end
+    QUIT
+ 
+ymax=results(5)			| Scale y-axis of plots
+h/set/maximum 1 [ymax]
+h/set/minimum 1 0.0
+h/set/maximum 2 [ymax]
+h/set/minimum 2 0.0
+ 
+
+*** First plot on with off shown as dashed histo
+h/pl 1  ; set dmod 1 k
+h/pl 1 pes 1
+set dmod 2
+h/pl 2 s
+set dmod 1
+atitle 'Alpha (deg)' ' '
+set xlab 1.2
+atitle '' 'Events per 5 degree'
+* set xlab 0.5
+ 
+*** Draw box with excess and significance
+xexp=results(1)        | ON-OFF per minute		
+xsigp=results(2)       | Significance per pair
+xext=results(3)        | ON-OFF total excess for all pairs
+xsigt=results(4)       | Total significance for all pairs
+xexta=results(11)      | ON-OFF for alpha analysis, total
+xsigta=results(12)     | Significance for alpha analysis, total
+xexpa=results(13)      | ON-OFF per minute for alpha analysis
+xsigpa=results(14)     | Significance for alpha analysis, per run
+ 
+y1=results(10)
+y2=results(5)
+BOX 40 90 [y1] [y2]
+y1=results(6)
+y2=results(7)
+y3=results(8)
+y4=results(9)
+ 
+if [inoff] = [inon] then	| Only do on off if num on/off runs match
+  text 65 [y1] 'Excess"J# '//[xexp]//' [g]/min' 0.2 ! c
+  text 65 [y2] 'Sig"J# '//[xsigp]//' [s]/pair' 0.2 ! c
+  text 65 [y3] 'Total Excess"J# '//[xext]//' [g]' 0.2 ! c
+  text 65 [y4] 'Total Sig"J# '//[xsigt]//' [s]' 0.2 ! c
+else			| Otherwise do alpha analysis
+  text 65 [y1] 'Excess"J# '//[xexpa]//' [g]/min' 0.2 ! c
+  text 65 [y2] 'Sig"J# '//[xsigpa]//' [s]/pair' 0.2 ! c
+  text 65 [y3] 'Total Excess"J# '//[xexta]//' [g]' 0.2 ! c
+  text 65 [y4] 'Total Sig"J# '//[xsigta]//' [s]' 0.2 ! c
+endif
+ 
+h/set/maximum 1 [ymax]
+h/set/minimum 1 0.0
+h/set/maximum 2 [ymax]
+h/set/minimum 2 0.0
+ 
+*** Now plot off with on shown as dashed histo
+* set dmod 2
+* h/pl 1
+* set dmod 1
+* h/pl 2 s ; set dmod 1 k
+* h/pl 2 pes 2
+* atitle 'Alpha (deg)' ' '
+ 
+h/put/cont 70 intdif	| Put contents of vector xx into histogram 70
+h/put/cont 80 intsig
+ 
+|*** Plot the difference between on and off as a histogram
+|h/pl 50
+|atitle 'Alpha (deg)' ' '
+|set dmod 2
+|line 0.0 0.0 90.0 0.0
+|set dmod 1
+ 
+|*** Plot the integral excess histogram 
+|h/pl 70
+|set dmod 2
+|line 0.0 0.0 90.0 0.0
+|set dmod 1
+ 
+*** Plot the integral significance histogram
+h/pl 80
+atitle 'Alpha (deg)' 'standard deviations'
+set dmod 2
+line 0.0 0.0 90.0 0.0
+set dmod 1
+ 
+opt linx 
+opt nsta
+ 
+nul 0 16 0 14 AB
+text 1 14 'Cuts"J# ' 0.25 ! l
+text 1 13 [cut1] 0.25 ! 1
+text 1 12 [cut2] 0.25 ! l
+text 1 11 [cut3] 0.25 ! l
+text 1 10 [cut4] 0.25 ! l
+text 1 9 [cut5] 0.25 ! l
+text 1 8 [cut6] 0.25 ! l
+text 1 7 [cut7] 0.25 ! l
+text 1 5 'Alpha ON "J#' 0.25 ! l
+text 1 2 'Alpha OFF "J#' 0.25 ! l
+|text 1 2.8 'Integral ' 0.25 ! l
+do i=1,6
+	alphatxton=on([i])
+	alphatxtoff=off([i])
+
+	text 5*[i]+3 5 [alphatxton] 0.25 ! 1
+	alphatxton=on([i]+6)
+	text 5*[i]+3 4 [alphatxton] 0.25 ! 1
+	alphatxton=on([i]+12)
+	text 5*[i]+3 3 [alphatxton] 0.25 ! 1
+
+	text 5*[i]+3 2 [alphatxtoff] 0.25 ! 1
+	alphatxtoff=off([i]+6)
+	text 5*[i]+3 1 [alphatxtoff] 0.25 ! 1
+	alphatxtoff=off([i]+12)
+	text 5*[i]+3 0 [alphatxtoff] 0.25 ! 1
+
+		
+enddo
+
+|v/print on
+|v/print results
+|v/print ontime
+
+nul 0 16 0 14 AB
+nul 0 16 1 15 AB
+
+|call [comisdir]calc_sigs.f
+
+ron=stats(1,1)
+roff=stats(2,1)
+rs=sigmas(1)
+
+nbron=stats(1,2)
+nbroff=stats(2,2)
+nbrsig=sigmas(2)
+
+ton=stats(1,3)
+toff=stats(2,3)
+ts=sigmas(3)
+
+son=stats(1,4)
+soff=stats(2,4)
+ss=sigmas(4)
+
+sn2090=stats(1,5)
+sf2090=stats(2,5)
+ss2090=sigmas(5)
+
+oon=stats(1,6)
+ooff=stats(2,6)
+os=sigmas(6)
+
+bon=stats(1,7)
+boff=stats(2,7)
+
+
+rs=$substring([rs],1,7)
+nbrsig=$substring([nbrsig],1,7)
+ts=$substring([ts],1,7)
+os=$substring([os],1,7)
+ss=$substring([ss],1,7)
+ss2090=$substring([ss2090],1,7)
+xsigt=$substring([xsigt],1,7)
+
+text 5 16.25 'RAW' 0.2 ! l
+text 10 16.25 'NBR3' 0.2 ! l
+text 15 16.25 'TRIGGER' 0.2 ! l
+text 20 16.25 'SHAPE' 0.2 ! l
+text 24 16.25 'SHAPE 20-90' 0.2 ! l
+text 30 16.25 'ORIENT' 0.2 ! l
+text 35 16.25 'BOTH' 0.2 ! l
+text 1 14.75 'ON' 0.2 ! l
+text 1 14 'OFF' 0.2 ! l
+text 1 12.5 'EXCESS' 0.2 ! l
+line='------------------------------------------------------------------'   
+text 1 17 [line] 0.2 ! l
+text 1 15.5 [line] 0.2 ! l
+text 5 14.75 [ron] 0.2 ! l
+text 5 14 [roff] 0.2 ! l
+text 5 12.5 [rs] 0.2 ! l
+text 10 14.75 [nbron] 0.2 ! l
+text 10 14 [nbroff] 0.2 ! l
+text 10 12.5 [nbrsig] 0.2 ! l
+text 15 14.75 [ton] 0.2 ! l
+text 15 14 [toff] 0.2 ! l
+text 15 12.5 [ts] 0.2 ! l
+text 20 14.75 [son] 0.2 ! l
+text 20 14 [soff] 0.2 ! l
+text 20 12.5 [ss] 0.2 ! l
+text 25 14.75 [sn2090] 0.2 ! l
+text 25 14 [sf2090] 0.2 ! l
+text 25 12.5  [ss2090] 0.2 ! l
+text 30 14.75 [oon] 0.2 ! l
+text 30 14 [ooff] 0.2 ! l
+text 30 12.5 [os] 0.2 ! l
+text 35 14.75 [bon] 0.2 ! l
+text 35 14 [boff] 0.2 ! l
+text 35 12.5 [xsigt] 0.2 ! l
+text 1 13.25 [line] 0.2 ! l
+text 1 11 'Total Duration '//$eval(tdurcut(1))//' seconds.           '_
+//[g]//' rate '//[xexp]//' per minute' 0.25 ! l
+
+if [np].eq.1 then
+	dur1=durs(1)
+	1d 90 'ON- raw rate' 30 0. 1800.	
+	1d 95 'OFF- raw rate' 30 0. 1800.
+	cd //allon
+	nt/proj 90 100.t10utc t10utc.lt.[dur1]
+	cd //allof
+	nt/proj 95 100.t10utc t10utc.lt.[dur1]
+	zon 2 5 09 's'
+	hi/plot 90 ' '
+	hi/plot 90 'es'
+	hi/plot 95 ' '
+	hi/plot 95 'es'
+endif
+
+
+
+
+IF [#] > 0 THEN
+  picture/print 'alpha_'//[1]//'x'//[#]//'.ps' 
+ELSE
+  picture/print alpha_total.ps
+ENDIF
+picture/del palph
+
+|gr/misc/clr
+|pict/cre plalpha2
+|zone 1 2
+|*** First plot on with off shown as dashed histo
+|h/pl 30  ; set dmod 1 k
+|h/pl 30 pes 30
+|set dmod 2
+|h/pl 40 s
+|set dmod 1
+|atitle 'Alpha (deg)' ' '
+|set xlab 1.2
+|atitle '' 'Events per 5 degree'
+|
+|nul 4 34 -1 17 AB
+|text 5 14 'RAW' 0.28 ! l
+|text 10 14 'NBR3' 0.28 ! l
+|text 15 14 'TRIGGER' 0.28 ! l
+|text 20 14 'SHAPE' 0.28 ! l
+|text 23.5 14 'SHAPE 20-90' 0.28 ! l
+|text 30 14 'ORIENT' 0.28 ! l
+|text 35 14 'BOTH' 0.28 ! l
+|text 1 12 'ON' 0.28 ! l
+|text 1 11 'OFF' 0.28 ! l
+|text 1 9 'EXCESS' 0.28 ! l
+|line='-------------------------------------------------------------------------' 
+|text 1 15 [line] 0.28 ! l
+|text 1 13 [line] 0.28 ! l
+|text 5 12 [ron] 0.28 ! l
+|text 5 11 [roff] 0.28 ! l
+|text 5 9 [rs] 0.28 ! l
+|text 10 12 [nbron] 0.28 ! l
+|text 10 11 [nbroff] 0.28 ! l
+|text 10 9 [nbrsig] 0.28 ! l
+|text 15 12 [ton] 0.28 ! l
+|text 15 11 [toff] 0.28 ! l
+|text 15 9 [ts] 0.28 ! l
+|text 20 12 [son] 0.28 ! l
+|text 20 11 [soff] 0.28 ! l
+|text 20 9 [ss] 0.28 ! l
+|text 25 12 [sn2090] 0.28 ! l
+|text 25 11 [sf2090] 0.28 ! l
+|text 25 9  [ss2090] 0.28 ! l
+|text 30 12 [oon] 0.28 ! l
+|text 30 11 [ooff] 0.28 ! l
+|text 30 9 [os] 0.28 ! l
+|text 35 12 [bon] 0.28 ! l
+|text 35 11 [boff] 0.28 ! l
+|text 35 9 [xsigt] 0.28 ! l
+|text 1 10 [line] 0.28 ! l
+|pict/print alpha_total2.eps
+|pict/del *
+
+
+rewind 1
+rewind 2
+Message 'Generating ASCII output file....'
+for/file 20 'pawtab.out'     |open equivalent of old tab.out for ascii
+				     |output of results.
+call [comisdir]wrpawtab.f
+message DONE
+close 1
+close 2
+close 20
+CHAIN -allon
+chain -allof
+v/del *
+h/delete 0
+close 0
+
+end:
+return
+
+
+
+
+
+
+

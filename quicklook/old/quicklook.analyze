@@ -1,0 +1,606 @@
+#pql *
+#pql * quicklook.kumac
+#pql * JB
+#pql * 950725
+#pql *
+#pql * PAW kumac to generate quick-look distributions for a chain of
+#pql * files, including: peds, pedvars, gains, triggering tubes, delta-t
+#pql * distributions, hillas parameter distributions, etc.
+#pql *
+#pql * Define options
+#pql *
+#pql dbdir = '/home/dbgt/pgvec/'
+#pql comisdir = '/usr/local/whipple/prog/quicklook/'
+#pql *
+#pql opt nbox             | no box around plot
+#pql opt a4
+#pql opt linx
+#pql opt liny
+#pql set mtyp 1           | marker type
+#pql set xlab 1.5         | dist label to y-axis (default = 1.4)
+#pql set asiz 0.22        | axis label size (default = 0.28)
+#pql set XMGL 3.0         | Margins (defualt = 2.0)	
+#pql set XMGR 2.0
+#pql set YMGL 2.0
+#pql set YMGU 3.0
+#pql set VSIZ 0.18
+#pql *
+#pql * Initialize vectors
+#pql *
+#pql v/cr hva(200) R
+#pql v/cr hvb(200) R
+#pql v/cr trig(109) R
+#pql *
+#pql inon = 0
+#pql inoff = 0
+#pql *
+#pql * Build ntuple chain
+#pql *
+#pql CHAIN -
+#pql IF [#] > 0 THEN
+#pql   DO i=1,[#],1
+#pql     CHAIN allon [%i].rz
+#pql     inon = [inon] + 1
+#pql   ENDDO
+#pql   title 'Quicklook "J#'//[*]//' '//$DATE
+#pql ELSE
+#pql * exec qlchain.kumac
+#pql   inon = non            | This is a way of using a scaler to pass
+#pql                         | a variable to a macro, and return a var.
+#pql   title 'Quicklook '//[inon]//' runs'//' '//$DATE
+#pql ENDIF
+#pql IF [inon] > 0 THEN
+#pql   cd //allon
+#pql   chain allon>
+#pql ENDIF
+#pql * IF [inon] > 0 THEN
+#pql *   CHAIN
+#pql *   CHAIN allon>
+#pql *   CD allon
+#pql * ENDIF
+#pql *
+#pql vec/create xr(109) R
+#pql vec/create yr(109) R
+#pql vec/create ped(109) R
+#pql vec/create pedvar(109) R
+#pql vec/create dped(109) R
+#pql vec/create gain(109) R
+#pql IF [inon].eq.1 THEN
+#pql   vec/read xr,yr,ped,pedvar,dped,gain [dbdir]//[1].pgvec
+#pql ENDIF
+#pql *
+#pql * General initializations
+#pql *
+#pql zone 3 6 1
+#pql * set HTYP -3
+#pql *
+#pql * Create Histograms
+#pql *
+#pql *** Triggering PMT ph dist
+#pql hi/create/1dhisto 10 ' ' 100 0. 200.
+#pql *** PMTs in trigger
+#pql hi/create/1dhisto 15 ' ' 109 0.5 109.5
+#pql *** PMTs in trigger after cuts
+#pql hi/create/1dhisto 17 ' ' 109 0.5 109.5
+#pql *** 2-d trigger rate plot after cuts
+#pql 2d 20 ' ' 21 -1.3125 1.3125 11 -1.1375 1.1375 0.
+#pql *** Events per minute vs. time
+#pql hi/create/1dhisto 25 ' ' 35 0. 2100.
+#pql *** Gammas per minute vs. time
+#pql hi/create/1dhisto 30 ' ' 35 0. 2100.
+#pql *** PMTs in images passing cuts
+#pql hi/create/1dhisto 40 ' ' 20 0. 20.
+#pql *** Delta-t distribution
+#pql hi/create/1dhisto 50 ' ' 50 0. 0.2
+#pql *** Delta-t distribution
+#pql hi/create/1dhisto 55 ' ' 10 0. 0.002
+#pql *** Length
+#pql hi/create/1dhisto 60 ' ' 40 0. 1.
+#pql hi/create/1dhisto 61 ' ' 40 0. 1.
+#pql hi/create/1dhisto 62 ' ' 40 0. 1.
+#pql *** Width
+#pql hi/create/1dhisto 63 ' ' 40 0. 1.
+#pql hi/create/1dhisto 64 ' ' 40 0. 1.
+#pql *** Dist
+#pql hi/create/1dhisto 65 ' ' 40 0. 2.
+#pql hi/create/1dhisto 66 ' ' 40 0. 2.
+#pql *** Size
+#pql hi/create/1dhisto 67 ' ' 200 10.0 5000.
+#pql *** Size
+#pql hi/create/1dhisto 68 ' ' 200 10.0 5000.
+#pql *** Hadronicity
+#pql hi/create/1dhisto 70 ' ' 40 0. 1.
+#pql *** Hadronicity (supercuts)
+#pql hi/create/1dhisto 75 ' ' 40 0. 1.
+#pql *** Gain
+#pql hi/create/1dhisto 80 ' ' 200 10. 1000.0
+#pql *** Gain after supercuts
+#pql hi/create/1dhisto 82 ' ' 20 10. 1000.0
+#pql *** Gain after hadronicity cut
+#pql hi/create/1dhisto 85 ' ' 20 10. 100.0
+#pql *** Length/totsig
+#pql hi/create/1dhisto 86 ' ' 40 0. 0.002
+#pql *** Length/totsig after supercuts
+#pql hi/create/1dhisto 87 ' ' 40 0. 0.002
+#pql *** Length/totsig after muonicity cut
+#pql hi/create/1dhisto 88 ' ' 40 0. 0.002
+#pql *** Muon veto pulseheight
+#pql hi/create/1dhisto 89 ' ' 100 1 1000
+#pql *** Neighbor trigger
+#pql hi/create/1dhisto 90 ' ' 4 0.5 4.5
+#pql *** Neighbor trigger
+#pql hi/create/1dhisto 95 ' ' 4 0.5 4.5
+#pql *** Pedestals
+#pql hi/create/1dhisto 96 ' ' 109 0.5 109.5
+#pql *** Pedestal Variances
+#pql hi/create/1dhisto 97 ' ' 109 0.5 109.5
+#pql *** Gains
+#pql hi/create/1dhisto 98 ' ' 109 0.5 109.5
+#pql *** 2-d
+#pql 2d 99 ' ' 20 -2.0 2.0 20 -2.0 2.0 0.
+#pql *
+#pql * Stuff Histograms using a selection function for speed
+#pql * (thanks JQ!)
+#pql *
+#pql message 'Cutting ntuple...'
+#pql nt/loop 100 [comisdir]//qluw.f
+#pql message 'Done.'
+#pql *
+#pql pict/create QLPLOT
+#pql *
+#pql * Plot Histograms
+#pql *
+#pql *** Triggering PMT ph dist
+#pql hi/plot 10
+#pql atitle 'Triggering PMT PH Dist "M#d.c."N#'
+#pql *
+#pql *** PMTs in trigger
+#pql hi/plot 15
+#pql atitle 'Trigger Freq vs PMT' ' '
+#pql *
+#pql IF [inon].eq.1 THEN
+#pql *** Pedestals
+#pql   h/put/cont 96 ped
+#pql   hi/plot 96 
+#pql   atitle 'Pedestal vs PMT' ' '
+#pql *
+#pql *** Pedestal Variances
+#pql   h/put/cont 97 pedvar
+#pql   hi/plot 97
+#pql   atitle 'Ped Variance vs PMT' ' '
+#pql *
+#pql *** Nitrogen Gain
+#pql   h/put/cont 98 gain
+#pql   hi/plot 98
+#pql   atitle 'Nitrogen Gain vs PMT Number' ' '
+#pql *
+#pql *** 2-d trigger rate plot after cuts
+#pql   h/plot 20 BOX
+#pql   atitle ' X "M#degrees"N# (after cuts)' 'Y "M#degrees"N#'
+#pql *
+#pql * switch Z
+#pql * pic/cr MERGE2
+#pql *** Delta-t distribution
+#pql opt logy
+#pql h/pl 50 ; set dmod 1 k
+#pql h/pl 50 pes 50
+#pql opt linx ; opt liny
+#pql atitle '[D]t "M#sec"N#' 'Events per Bin'
+#pql * pic/cr MERGE1
+#pql *** Delta-t distribution
+#pql * zone 3 5 1 s
+#pql opt logy
+#pql * h/pl 55
+#pql h/pl 55 ; set dmod 1 k
+#pql h/pl 55 pes 55
+#pql opt linx ; opt liny
+#pql atitle '[D]t "M#sec"N#' 'Events per Bin'
+#pql * izpic MERGE2 C
+#pql * switch G
+#pql * zone 3 5 1 s
+#pql * xinset=($HINFO(50,'XMIN')+$HINFO(50,'XMAX'))/2.
+#pql * yinset=($HINFO(50,'MAX')+$HINFO(50,'MIN'))/2.
+#pql * message 'xinset = '//[xinset]//' yinset = '//[yinset]
+#pql * pi/merge MERGE1 [xinset] [yinset] 0.5 D
+#pql * zone 3 5 1 s
+#pql * pi/merge MERGE1 0.085 0.445 0.5 
+#pql * zone 3 5 1 s
+#pql * pict/plot MERGE2
+#pql * pi/del MERGE1
+#pql * pi/del MERGE2
+#pql *
+#pql * zone 3 5 2 s
+#pql *** Delta-t distribution
+#pql * opt logy
+#pql * h/pl 50 ; set dmod 1 k
+#pql * h/pl 50 pes 50
+#pql * opt linx ; opt liny
+#pql * atitle '[D]t "M#sec"N#' 'Events per Bin'
+#pql *** Delta-t distribution
+#pql * zone 4 8 5 s
+#pql * opt logy
+#pql * h/pl 55 ; set dmod 1 k
+#pql * h/pl 55 pes 55
+#pql * opt linx ; opt liny
+#pql * atitle '[D]t "M#sec"N#' 'Events per Bin'
+#pql * zone 3 6 2 s
+#pql *
+#pql *** Events per minute vs. time
+#pql   h/pl 25 ; set dmod 1 k
+#pql   h/pl 25 pes 25
+#pql   atitle 'UTC Time "M#sec"N#' 'Events per Minute'
+#pql   ymax1=$HINFO(25,'MAX')
+#pql   ymax2=$HINFO(30,'MAX')
+#pql   h/get/cont 30 hva
+#pql   scalef=0.75*[ymax1]/[ymax2]
+#pql   scalef=$format([scalef],f5.0)
+#pql   vec/op/vscale hva [scalef] hvb
+#pql   * h/del 30
+#pql   * hi/create/1dhisto 30 ' ' 35 0. 2100.
+#pql   h/put/cont 30 hvb
+#pql   set DMOD 3
+#pql   * set HTYP -3
+#pql   h/pl 30 s 
+#pql   set DMOD 0
+#pql   * set HTYP -0
+#pql ENDIF
+#pql *
+#pql *** PMTs in images passing cuts
+#pql hi/plot 40
+#pql atitle 'No. PMTs in Picture'
+#pql *
+#pql *** Length
+#pql hi/plot 61
+#pql atitle 'LENGTH "M#degrees"N#' 'events/bin'
+#pql ymax1=$HINFO(61,'MAX')
+#pql ymax2=$HINFO(62,'MAX')
+#pql * message 'ymax1 = '//[ymax1]
+#pql * message 'ymax2 = '//[ymax2]
+#pql h/get/cont 62 hva
+#pql scalef=0.75*[ymax1]/[ymax2]
+#pql scalef=$format([scalef],f5.0)
+#pql ytext=0.6*[ymax1]
+#pql xtext=1.2*$HINFO(62,'MEAN')
+#pql text [xtext] [ytext] '"x#'//[scalef] 0.2 ! l
+#pql * message 'scalef = '//[scalef]
+#pql vec/op/vscale hva [scalef] hvb
+#pql h/put/cont 60 hvb
+#pql set DMOD 3
+#pql * set HTYP -3
+#pql * set HTYP 357
+#pql h/pl 60 s 
+#pql set DMOD 0
+#pql * set HTYP -0
+#pql * kuip/wait 'pausing for 4 sec' 4
+#pql *
+#pql *** Width
+#pql hi/plot 63
+#pql atitle 'WIDTH "M#degrees"N#' 'events/bin'
+#pql ymax1=$HINFO(63,'MAX')
+#pql ymax2=$HINFO(64,'MAX')
+#pql h/get/cont 64 hva
+#pql scalef=0.75*[ymax1]/[ymax2]
+#pql scalef=$format([scalef],f5.0)
+#pql ytext=0.6*[ymax1]
+#pql xtext=1.4*$HINFO(64,'MEAN')
+#pql text [xtext] [ytext] '"x#'//[scalef] 0.2 ! l
+#pql vec/op/vscale hva [scalef] hvb
+#pql h/put/cont 64 hvb
+#pql * set HTYP 357
+#pql set DMOD 3
+#pql * set HTYP -3
+#pql h/pl 64 s 
+#pql set DMOD 0
+#pql * set HTYP -0
+#pql * hi/plot 64
+#pql * atitle 'width "M#degrees"N# (after cuts)' 'events/bin'
+#pql *
+#pql *** Dist
+#pql hi/plot 65
+#pql atitle 'DISTANCE "M#degrees"N#' 'events/bin'
+#pql ymax1=$HINFO(65,'MAX')
+#pql ymax2=$HINFO(66,'MAX')
+#pql h/get/cont 66 hva
+#pql scalef=0.75*[ymax1]/[ymax2]
+#pql scalef=$format([scalef],f5.0)
+#pql ytext=0.6*[ymax1]
+#pql xtext=1.4*$HINFO(66,'MEAN')
+#pql text [xtext] [ytext] '"x#'//[scalef] 0.2 ! l
+#pql vec/op/vscale hva [scalef] hvb
+#pql * h/del 66
+#pql h/put/cont 66 hvb
+#pql * set HTYP 357
+#pql set DMOD 3
+#pql * set HTYP -3
+#pql h/pl 66 s 
+#pql set DMOD 0
+#pql * set HTYP -0
+#pql * hi/plot 66
+#pql * atitle 'distance "M#degrees"N# (after cuts)' 'events/bin'
+#pql *
+#pql *** Size
+#pql ymax1=$HINFO(67,'MAX')
+#pql ymax2=$HINFO(68,'MAX')
+#pql opt logx; opt logy       | log-scale
+#pql h/pl 67 ; set dmod 1 k
+#pql h/pl 67 pes 67
+#pql h/get/cont 68 hva
+#pql scalef=0.20*[ymax1]/[ymax2]
+#pql scalef=$format([scalef],f5.0)
+#pql ytext=0.10*[ymax1]
+#pql xtext=1.3*$HINFO(68,'MEAN')
+#pql text [xtext] [ytext] '"x#'//[scalef] 0.2 ! l
+#pql vec/op/vscale hva [scalef] hvb
+#pql * h/del 68
+#pql h/put/cont 68 hvb
+#pql * set HTYP 357
+#pql set DMOD 3
+#pql * set HTYP -3
+#pql h/pl 68 s 
+#pql set DMOD 0
+#pql * set HTYP -0
+#pql atitle 'SIZE "M#d.c."N#' 'Events/Bin'
+#pql opt linx; opt liny
+#pql *
+#pql *** Size
+#pql * opt logx; opt logy
+#pql * h/pl 67 ; set dmod 1 k
+#pql * h/pl 67 pes 67
+#pql * atitle 'total signal "M#d.c."N# (after cuts)' 'events/bin'
+#pql opt linx; opt liny
+#pql *
+#pql *** Hadronicity
+#pql * opt logy
+#pql * hi/plot 70
+#pql * atitle 'HADRONICITY '  'Events/Bin'
+#pql * ymax1=$HINFO(70,'MAX')
+#pql * ymax2=$HINFO(75,'MAX')
+#pql * h/get/cont 75 hva
+#pql * scalef=0.20*[ymax1]/[ymax2]
+#pql * vec/op/vscale hva [scalef] hvb
+#pql * h/put/cont 75 hvb
+#pql * set HTYP -3
+#pql * h/pl 75 s 
+#pql * set HTYP -0
+#pql * opt liny
+#pql *
+#pql *** Hadronicity (supercuts)
+#pql * opt logy
+#pql * hi/plot 75
+#pql * atitle 'hadronicity (after cuts)'  'events/bin'
+#pql * opt liny
+#pql *
+#pql *** Gain
+#pql ymax1=$HINFO(80,'MAX')
+#pql ymax2=$HINFO(82,'MAX')
+#pql IF [ymax1] > 0 THEN
+#pql *  opt logx
+#pql *  hi/plot 80
+#pql *  atitle 'MUON GAIN'  'Events/Bin'
+#pql *  h/get/cont 82 hva
+#pql *  scalef=0.75*[ymax1]/[ymax2]
+#pql *  vec/op/vscale hva [scalef] hvb
+#pql *  h/put/cont 82 hvb
+#pql *  set HTYP -3
+#pql *  h/pl 82 s
+#pql *  set HTYP -0
+#pql *  ymax2=$HINFO(85,'MAX')
+#pql *  h/get/cont 85 hva
+#pql *  scalef=0.75*[ymax1]/[ymax2]
+#pql *  vec/op/vscale hva [scalef] hvb
+#pql *  hi/create/1dhisto 86 ' ' 20 0. 100.0
+#pql *  h/put/cont 86 hvb
+#pql *  set HTYP -3
+#pql *  hi/plot 86 s
+#pql *  set HTYP -0
+#pql *  opt linx
+#pql *** Gain after hadronicity cut
+#pql *  h/pl 85 s ; set dmod 1 k
+#pql   opt fit
+#pql   hi/fit 85 G
+#pql   set dmod 1 k
+#pql   h/pl 85 pes 85
+#pql   atitle 'MUON GAIN'  'Events/Bin'
+#pql   opt nfit
+#pql ELSE	| If muon gain not calculated, print out totsig/length
+#pql   null 0 16 0 16 AB
+#pql ENDIF
+#pql *** Length/size
+#pql ymax1=$HINFO(86,'MAX')
+#pql ymax2=$HINFO(87,'MAX')
+#pql * opt logx
+#pql hi/plot 86
+#pql atitle 'LENGTH/SIZE'  'Events/Bin'
+#pql h/get/cont 87 hva
+#pql scalef=0.75*[ymax1]/[ymax2]
+#pql scalef=$format([scalef],f5.0)
+#pql vec/op/vscale hva [scalef] hvb
+#pql h/put/cont 87 hvb
+#pql set DMOD 2
+#pql * set HTYP -3
+#pql h/pl 87 s
+#pql set DMOD 0
+#pql * set HTYP -0
+#pql * atitle 'gain (after cuts)'  'events/bin'
+#pql ymax2=$HINFO(88,'MAX')
+#pql h/get/cont 88 hva
+#pql scalef=0.75*[ymax1]/[ymax2]
+#pql scalef=$format([scalef],f5.0)
+#pql vec/op/vscale hva [scalef] hvb
+#pql * hi/create/1dhisto 88 ' ' 20 0. 100.0
+#pql h/put/cont 88 hvb
+#pql set DMOD 3
+#pql * set HTYP -3
+#pql hi/plot 88 s
+#pql set DMOD 0
+#pql * set HTYP -0
+#pql opt linx
+#pql *
+#pql *** Muon veto
+#pql opt logx
+#pql hi/plot 89
+#pql atitle 'Anticoin. Pulseheight' ' '
+#pql opt linx
+#pql *
+#pql *** Neighbor trigger
+#pql opt logy
+#pql hi/plot 90 
+#pql atitle 'Num. Adj. Triggering Tubes'  'events/bin'
+#pql ymax1=$HINFO(90,'MAX')
+#pql ymax2=$HINFO(95,'MAX')
+#pql h/get/cont 95 hva
+#pql scalef=0.20*[ymax1]/[ymax2]
+#pql scalef=$format([scalef],f5.0)
+#pql ytext=0.15*[ymax1]
+#pql xtext=0.8*$HINFO(95,'MEAN')
+#pql text [xtext] [ytext] '"x#'//[scalef] 0.2 ! r
+#pql vec/op/vscale hva [scalef] hvb
+#pql h/put/cont 95 hvb
+#pql set DMOD 3
+#pql * set HTYP -3
+#pql hi/plot 95 s
+#pql set DMOD 0
+#pql * set HTYP -0
+#pql * atitle 'Num. Adj. Triggering Tubes (after cuts)'  'events/bin'
+#pql opt liny
+#pql *
+#pql /picture/print [1]_ql.ps
+#pql pict/delete QLPLOT
+#pql kuip/wait 'pausing for 10 sec' 10
+#pql *
+#pql * pict/create QLPLOT
+#pql set VSIZ 0
+#pql zone 2 3 1
+#pql h/get/cont 17 trig
+#pql exec quicklook4#whipcam trig
+#pql atitle 'Times in Trigger  X "M#degrees"N# (after cuts)' 'Y "M#degrees"N#'
+#pql exec quicklook4#whipcam ped
+#pql atitle 'Pedestals   XM#deg"N#'  ' YM#deg"N#'
+#pql exec quicklook4#whipcam pedvar
+#pql atitle 'Pedestal Variances   XM#deg"N#'  ' YM#deg"N#'
+#pql exec quicklook4#whipcam xr yr dped
+#pql atitle 'Stars   XM#deg"N#'  ' YM#deg"N#'
+#pql exec quicklook4#whipcam gain
+#pql atitle 'Nitrogen Gains   XM#deg"N#'  ' YM#deg"N#'
+#pql *** 2-d
+#pql contour 99 10 2
+#pql atitle ' X "M#degrees"N# (after cuts)' 'Y "M#degrees"N#'
+#pql kuip/wait 'pausing for 4 sec' 4
+#pql *
+#pql * /picture/print [1]_pg.ps
+#pql * pict/delete QLPLOT
+#pql *
+#pql * picture/delete *
+#pql h/delete 0
+#pql close 0
+#pql return
+#pql 
+#pql *************************************************************
+#pql *
+#pql MACRO whipcam 
+#pql *	
+#pql *
+#pql *  Usage: exec quicklook4#whipcam [x y] [vec]
+#pql *
+#pql *  Plot vector "vec" of 109 values on the default x,y
+#pql *  tube coordinates of the whipple camera, or those specified
+#pql *  by the vectors "x" and "y"
+#pql *
+#pql vec/create x(109) R 
+#pql vec/input x(1:20) _
+#pql 0.000000000 0.259000003 0.129999995 -0.129999995 -0.259000003 _
+#pql -0.129999995 0.129999995 0.518000007 0.388999999 0.259000003 _
+#pql 0.000000000 -0.259000003 -0.388999999 -0.518000007 -0.388999999 _
+#pql -0.259000003 0.000000000 0.259000003 0.388999999 0.777000010
+#pql vec/input x(21:40) _ 
+#pql 0.647000015 0.518000007 0.388999999 0.129999995 -0.129999995 _
+#pql -0.388999999 -0.518000007 -0.647000015 -0.777000010 -0.647000015 _
+#pql -0.518000007 -0.388999999 -0.129999995 0.129999995 0.388999999 _
+#pql 0.518000007 0.647000015 1.036000013 0.906000018 0.777000010
+#pql vec/input x(41:60) _
+#pql 0.647000015 0.518000007 0.259000003 0.000000000 -0.259000003 _
+#pql -0.518000007 -0.647000015 -0.777000010 -0.906000018 -1.0360000 _
+#pql -0.906000018 -0.777000010 -0.644999981 -0.518000007 -0.2590000 _
+#pql 0.000000000 0.259000003 0.518000007 0.644999981 0.777000010
+#pql vec/input x(61:80) _
+#pql 0.906000018 1.294999957 1.164999962 1.036000013 0.906000018 _
+#pql 0.777000010 0.647000015 0.388999999 0.129999995 -0.129999995 _
+#pql -0.388999999 -0.647000015 -0.777000010 -0.906000018 -1.0360000 _
+#pql -1.164999962 -1.294999957 -1.164999962 -1.036000013 -0.9060000
+#pql vec/input x(81:109) _
+#pql -0.777000010 -0.647000015 -0.388999999 -0.130999997 0.1299999 _
+#pql 0.388999999 0.647000015 0.777000010 0.906000018 1.036000013 _
+#pql 1.164999962 1.294999957 1.164999962 1.036000013 0.259000003 _
+#pql 0.000000000 -0.259000003 -1.036000013 -1.164999962 -1.2949999 _
+#pql -1.294999957 -1.164999962 -1.036000013 -0.259000003 0.0000000 _
+#pql 0.259000003 1.036000013 1.164999962 1.294999957
+#pql 
+#pql vec/create y(109) R 
+#pql vec/input y(1:20) _
+#pql 0.000000000 0.000000000 -0.224000007 -0.224000007 0.000000000 _
+#pql 0.224000007 0.224000007 0.000000000 -0.224000007 -0.449000001 _
+#pql -0.449000001 -0.449000001 -0.224000007 0.000000000 0.224000007 _
+#pql 0.449000001 0.449000001 0.449000001 0.224000007 0.000000000
+#pql vec/input y(21:40) _
+#pql -0.224000007 -0.449000001 -0.672999978 -0.672999978 -0.6729999 _
+#pql -0.672999978 -0.449000001 -0.224000007 0.000000000 0.224000007 _
+#pql 0.449000001 0.672999978 0.672999978 0.672999978 0.672999978 _
+#pql 0.449000001 0.224000007 0.000000000 -0.224000007 -0.449000001
+#pql vec/input y(41:60) _
+#pql -0.672999978 -0.897000015 -0.897000015 -0.897000015 -0.8970000 _
+#pql -0.897000015 -0.672999978 -0.449000001 -0.224000007 0.0000000 _
+#pql 0.224000007 0.449000001 0.672999978 0.897000015 0.897000015 _
+#pql 0.897000015 0.897000015 0.897000015 0.672999978 0.449000001
+#pql vec/input y(61:80) _
+#pql 0.224000007 0.000000000 -0.224000007 -0.449000001 -0.672999978 _
+#pql -0.897000015 -1.121000051 -1.121000051 -1.121000051 -1.121000051 _
+#pql -1.121000051 -1.121000051 -0.897000015 -0.672999978 -0.449000001 _
+#pql -0.224000007 0.000000000 0.224000007 0.449000001 0.672999978
+#pql vec/input y(81:109) _
+#pql 0.897000015 1.121000051 1.121000051 1.121000051 1.121000051 _
+#pql 1.121000051 1.121000051 0.897000015 0.672999978 0.449000001 _
+#pql 0.224000007 -0.449000001 -0.672999978 -0.897000015 -1.345999956 _
+#pql -1.345999956 -1.345999956 -0.897000015 -0.672999978 -0.449000001 _
+#pql 0.449000001 0.672999978 0.897000015 1.345999956 1.345999956 _
+#pql 1.345999956 0.897000015 0.672999978 0.449000001 
+#pql  
+#pql * vec/read x,y whip10m.coords
+#pql graphics/attrib/sfais 1
+#pql graphics/attrib/sfaci 10
+#pql graphics/attrib/sfaci 6	
+#pql null -1.7 1.7 -1.7 1.7 
+#pql 
+#pql if [#].eq.0 then
+#pql   do i=1,109
+#pql 	graphics/primitives/arc x([i]) y([i]) 0.124 0.124
+#pql   	graphics/pr/text x([i]) y([i])-0.04 [i] .15 ! c	
+#pql   enddo
+#pql else
+#pql   if [#].eq.3 then
+#pql     vec/del x
+#pql     vec/del y
+#pql     vec/create x(109) R 
+#pql     vec/create y(109) R 
+#pql     vec/copy [1] x
+#pql     vec/copy [2] y
+#pql     vec/copy [3] adc
+#pql     message 'Using x,y vectors from command line'
+#pql   else
+#pql     vec/copy  [1] adc
+#pql   endif
+#pql   vec/cre adcor(109) r
+#pql   vec/copy adc adcor
+#pql   sigma dmax=vmax(adc)
+#pql   vec/op/vscale adc (0.124/dmax) adc
+#pql   do i=1,109
+#pql       graphics/primitives/arc x([i]) y([i]) 0 adc([i])	
+#pql       graphics/primitives/arc x([i]) y([i]) 0.124 0.124
+#pql *     graphics/pr/text x([i]) y([i])-0.04 [i] .15 ! c	
+#pql   enddo
+#pql   tdmax=dmax(1)
+#pql   txt='0 to '//[tdmax]
+#pql   graphics/pr/text 1.0 -1.5  [txt] .25 ! c	
+#pql endif
+#pql 
+#pql return
+#pql 

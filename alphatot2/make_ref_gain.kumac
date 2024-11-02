@@ -1,0 +1,60 @@
+***************************************************************************
+* make_ref_gain.kumac
+*
+* The kumac creates a reference histogram file to use for the ISU relative 
+* gain estimation which is based on the number of events above a set value
+* for the second high tube signal (max2).  
+* 
+* Usage: exec make_ref_gain gt4256.rz
+* The argument is the name of the ntuple parameter file used as a reference. 
+*
+* Output: ref_zen_gain.hbook
+*   This contains the reference histogram for the max3 distribution.
+* 
+* 000124 SLB First version.
+* 000225 MAC Add a few more comments and make the program work in paw 94a
+***************************************************************************
+
+ali/cr binnb 40              |Number of bins in max3 histogram
+ali/cr p2max 600.0           |Upper bound of max3 histogram
+ali/cr p2min 20.0            |Lower bound of max3 histogram
+ali/cr varr t10max3          |ntuple variable name for max3
+ali/cr timeref t10livetime   |ntuple variable name for livetime
+ali/cr ntplid 100            |ntuple ID
+
+* Open the ntuple
+hi/file 1 [1]
+
+* Get the duration of the reference run for time normalisation
+*old NTUPLE/DUMP ntplid.(timeref)  ! 1 1 tmp
+*old vect/cr tdeb(1) R
+*old vect/read tdeb tmp
+*old NTUPLE/DUMP ntplid.(timeref)  ! 1 $HINFO(ntplid,'ENTRIES') tmp
+*old vect/cr tend(1) R
+*old vect/read tend tmp
+*old vect/cr tdur(1) R
+*old sigma tdur=(tend-tdeb)
+*old sigma tdur=1/tdur
+v/cr tdur(1) r
+hi/cr/1d 1 [1] binnb p2min p2max
+nt/loop 100 gain.f
+sigma tdur=1/tdur
+
+* Create the reference histogram, fill it with the max2 data, and
+* write it the histogram
+*old hi/cr/1d 1 [1] binnb p2min p2max
+*old nt/proj 1 ntplid.(varr)
+hi/op/add 1 1 1 $sigma(tdur) 0. E
+hi/file 2 ref_zen_gain.hbook ! N
+hi/hio/hrout 1
+
+* Close the ntuple and the histogram file and clean up some things.
+close 2
+close 1
+
+*old ve/del tdeb
+*old ve/del tend
+ve/del tdur
+
+
+

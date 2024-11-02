@@ -1,0 +1,606 @@
+*
+* quicklook.kumac
+* JB
+* 950725
+*
+* PAW kumac to generate quick-look distributions for a chain of
+* files, including: peds, pedvars, gains, triggering tubes, delta-t
+* distributions, hillas parameter distributions, etc.
+*
+* Define options
+*
+dbdir = '/home/dbgt/pgvec/'
+comisdir = '/usr/local/whipple/prog/quicklook/'
+*
+opt nbox             | no box around plot
+opt a4
+opt linx
+opt liny
+set mtyp 1           | marker type
+set xlab 1.5         | dist label to y-axis (default = 1.4)
+set asiz 0.22        | axis label size (default = 0.28)
+set XMGL 3.0         | Margins (defualt = 2.0)	
+set XMGR 2.0
+set YMGL 2.0
+set YMGU 3.0
+set VSIZ 0.18
+*
+* Initialize vectors
+*
+v/cr hva(200) R
+v/cr hvb(200) R
+v/cr trig(109) R
+*
+inon = 0
+inoff = 0
+*
+* Build ntuple chain
+*
+CHAIN -
+IF [#] > 0 THEN
+  DO i=1,[#],1
+    CHAIN allon [%i].rz
+    inon = [inon] + 1
+  ENDDO
+  title 'Quicklook "J#'//[*]//' '//$DATE
+ELSE
+* exec qlchain.kumac
+  inon = non            | This is a way of using a scaler to pass
+                        | a variable to a macro, and return a var.
+  title 'Quicklook '//[inon]//' runs'//' '//$DATE
+ENDIF
+IF [inon] > 0 THEN
+  cd //allon
+  chain allon>
+ENDIF
+* IF [inon] > 0 THEN
+*   CHAIN
+*   CHAIN allon>
+*   CD allon
+* ENDIF
+*
+vec/create xr(109) R
+vec/create yr(109) R
+vec/create ped(109) R
+vec/create pedvar(109) R
+vec/create dped(109) R
+vec/create gain(109) R
+IF [inon].eq.1 THEN
+  vec/read xr,yr,ped,pedvar,dped,gain [dbdir]//[1].pgvec
+ENDIF
+*
+* General initializations
+*
+zone 3 6 1
+* set HTYP -3
+*
+* Create Histograms
+*
+*** Triggering PMT ph dist
+hi/create/1dhisto 10 ' ' 100 0. 200.
+*** PMTs in trigger
+hi/create/1dhisto 15 ' ' 109 0.5 109.5
+*** PMTs in trigger after cuts
+hi/create/1dhisto 17 ' ' 109 0.5 109.5
+*** 2-d trigger rate plot after cuts
+2d 20 ' ' 21 -1.3125 1.3125 11 -1.1375 1.1375 0.
+*** Events per minute vs. time
+hi/create/1dhisto 25 ' ' 35 0. 2100.
+*** Gammas per minute vs. time
+hi/create/1dhisto 30 ' ' 35 0. 2100.
+*** PMTs in images passing cuts
+hi/create/1dhisto 40 ' ' 20 0. 20.
+*** Delta-t distribution
+hi/create/1dhisto 50 ' ' 50 0. 0.2
+*** Delta-t distribution
+hi/create/1dhisto 55 ' ' 10 0. 0.002
+*** Length
+hi/create/1dhisto 60 ' ' 40 0. 1.
+hi/create/1dhisto 61 ' ' 40 0. 1.
+hi/create/1dhisto 62 ' ' 40 0. 1.
+*** Width
+hi/create/1dhisto 63 ' ' 40 0. 1.
+hi/create/1dhisto 64 ' ' 40 0. 1.
+*** Dist
+hi/create/1dhisto 65 ' ' 40 0. 2.
+hi/create/1dhisto 66 ' ' 40 0. 2.
+*** Size
+hi/create/1dhisto 67 ' ' 200 10.0 5000.
+*** Size
+hi/create/1dhisto 68 ' ' 200 10.0 5000.
+*** Hadronicity
+hi/create/1dhisto 70 ' ' 40 0. 1.
+*** Hadronicity (supercuts)
+hi/create/1dhisto 75 ' ' 40 0. 1.
+*** Gain
+hi/create/1dhisto 80 ' ' 200 10. 1000.0
+*** Gain after supercuts
+hi/create/1dhisto 82 ' ' 20 10. 1000.0
+*** Gain after hadronicity cut
+hi/create/1dhisto 85 ' ' 20 10. 100.0
+*** Length/totsig
+hi/create/1dhisto 86 ' ' 40 0. 0.002
+*** Length/totsig after supercuts
+hi/create/1dhisto 87 ' ' 40 0. 0.002
+*** Length/totsig after muonicity cut
+hi/create/1dhisto 88 ' ' 40 0. 0.002
+*** Muon veto pulseheight
+hi/create/1dhisto 89 ' ' 100 1 1000
+*** Neighbor trigger
+hi/create/1dhisto 90 ' ' 4 0.5 4.5
+*** Neighbor trigger
+hi/create/1dhisto 95 ' ' 4 0.5 4.5
+*** Pedestals
+hi/create/1dhisto 96 ' ' 109 0.5 109.5
+*** Pedestal Variances
+hi/create/1dhisto 97 ' ' 109 0.5 109.5
+*** Gains
+hi/create/1dhisto 98 ' ' 109 0.5 109.5
+*** 2-d
+2d 99 ' ' 20 -2.0 2.0 20 -2.0 2.0 0.
+*
+* Stuff Histograms using a selection function for speed
+* (thanks JQ!)
+*
+message 'Cutting ntuple...'
+nt/loop 100 [comisdir]//qluw.f
+message 'Done.'
+*
+pict/create QLPLOT
+*
+* Plot Histograms
+*
+*** Triggering PMT ph dist
+hi/plot 10
+atitle 'Triggering PMT PH Dist "M#d.c."N#'
+*
+*** PMTs in trigger
+hi/plot 15
+atitle 'Trigger Freq vs PMT' ' '
+*
+IF [inon].eq.1 THEN
+*** Pedestals
+  h/put/cont 96 ped
+  hi/plot 96 
+  atitle 'Pedestal vs PMT' ' '
+*
+*** Pedestal Variances
+  h/put/cont 97 pedvar
+  hi/plot 97
+  atitle 'Ped Variance vs PMT' ' '
+*
+*** Nitrogen Gain
+  h/put/cont 98 gain
+  hi/plot 98
+  atitle 'Nitrogen Gain vs PMT Number' ' '
+*
+*** 2-d trigger rate plot after cuts
+  h/plot 20 BOX
+  atitle ' X "M#degrees"N# (after cuts)' 'Y "M#degrees"N#'
+*
+* switch Z
+* pic/cr MERGE2
+*** Delta-t distribution
+opt logy
+h/pl 50 ; set dmod 1 k
+h/pl 50 pes 50
+opt linx ; opt liny
+atitle '[D]t "M#sec"N#' 'Events per Bin'
+* pic/cr MERGE1
+*** Delta-t distribution
+* zone 3 5 1 s
+opt logy
+* h/pl 55
+h/pl 55 ; set dmod 1 k
+h/pl 55 pes 55
+opt linx ; opt liny
+atitle '[D]t "M#sec"N#' 'Events per Bin'
+* izpic MERGE2 C
+* switch G
+* zone 3 5 1 s
+* xinset=($HINFO(50,'XMIN')+$HINFO(50,'XMAX'))/2.
+* yinset=($HINFO(50,'MAX')+$HINFO(50,'MIN'))/2.
+* message 'xinset = '//[xinset]//' yinset = '//[yinset]
+* pi/merge MERGE1 [xinset] [yinset] 0.5 D
+* zone 3 5 1 s
+* pi/merge MERGE1 0.085 0.445 0.5 
+* zone 3 5 1 s
+* pict/plot MERGE2
+* pi/del MERGE1
+* pi/del MERGE2
+*
+* zone 3 5 2 s
+*** Delta-t distribution
+* opt logy
+* h/pl 50 ; set dmod 1 k
+* h/pl 50 pes 50
+* opt linx ; opt liny
+* atitle '[D]t "M#sec"N#' 'Events per Bin'
+*** Delta-t distribution
+* zone 4 8 5 s
+* opt logy
+* h/pl 55 ; set dmod 1 k
+* h/pl 55 pes 55
+* opt linx ; opt liny
+* atitle '[D]t "M#sec"N#' 'Events per Bin'
+* zone 3 6 2 s
+*
+*** Events per minute vs. time
+  h/pl 25 ; set dmod 1 k
+  h/pl 25 pes 25
+  atitle 'UTC Time "M#sec"N#' 'Events per Minute'
+  ymax1=$HINFO(25,'MAX')
+  ymax2=$HINFO(30,'MAX')
+  h/get/cont 30 hva
+  scalef=0.75*[ymax1]/[ymax2]
+  scalef=$format([scalef],f5.0)
+  vec/op/vscale hva [scalef] hvb
+  * h/del 30
+  * hi/create/1dhisto 30 ' ' 35 0. 2100.
+  h/put/cont 30 hvb
+  set DMOD 3
+  * set HTYP -3
+  h/pl 30 s 
+  set DMOD 0
+  * set HTYP -0
+ENDIF
+*
+*** PMTs in images passing cuts
+hi/plot 40
+atitle 'No. PMTs in Picture'
+*
+*** Length
+hi/plot 61
+atitle 'LENGTH "M#degrees"N#' 'events/bin'
+ymax1=$HINFO(61,'MAX')
+ymax2=$HINFO(62,'MAX')
+* message 'ymax1 = '//[ymax1]
+* message 'ymax2 = '//[ymax2]
+h/get/cont 62 hva
+scalef=0.75*[ymax1]/[ymax2]
+scalef=$format([scalef],f5.0)
+ytext=0.6*[ymax1]
+xtext=1.2*$HINFO(62,'MEAN')
+text [xtext] [ytext] '"x#'//[scalef] 0.2 ! l
+* message 'scalef = '//[scalef]
+vec/op/vscale hva [scalef] hvb
+h/put/cont 60 hvb
+set DMOD 3
+* set HTYP -3
+* set HTYP 357
+h/pl 60 s 
+set DMOD 0
+* set HTYP -0
+* kuip/wait 'pausing for 4 sec' 4
+*
+*** Width
+hi/plot 63
+atitle 'WIDTH "M#degrees"N#' 'events/bin'
+ymax1=$HINFO(63,'MAX')
+ymax2=$HINFO(64,'MAX')
+h/get/cont 64 hva
+scalef=0.75*[ymax1]/[ymax2]
+scalef=$format([scalef],f5.0)
+ytext=0.6*[ymax1]
+xtext=1.4*$HINFO(64,'MEAN')
+text [xtext] [ytext] '"x#'//[scalef] 0.2 ! l
+vec/op/vscale hva [scalef] hvb
+h/put/cont 64 hvb
+* set HTYP 357
+set DMOD 3
+* set HTYP -3
+h/pl 64 s 
+set DMOD 0
+* set HTYP -0
+* hi/plot 64
+* atitle 'width "M#degrees"N# (after cuts)' 'events/bin'
+*
+*** Dist
+hi/plot 65
+atitle 'DISTANCE "M#degrees"N#' 'events/bin'
+ymax1=$HINFO(65,'MAX')
+ymax2=$HINFO(66,'MAX')
+h/get/cont 66 hva
+scalef=0.75*[ymax1]/[ymax2]
+scalef=$format([scalef],f5.0)
+ytext=0.6*[ymax1]
+xtext=1.4*$HINFO(66,'MEAN')
+text [xtext] [ytext] '"x#'//[scalef] 0.2 ! l
+vec/op/vscale hva [scalef] hvb
+* h/del 66
+h/put/cont 66 hvb
+* set HTYP 357
+set DMOD 3
+* set HTYP -3
+h/pl 66 s 
+set DMOD 0
+* set HTYP -0
+* hi/plot 66
+* atitle 'distance "M#degrees"N# (after cuts)' 'events/bin'
+*
+*** Size
+ymax1=$HINFO(67,'MAX')
+ymax2=$HINFO(68,'MAX')
+opt logx; opt logy       | log-scale
+h/pl 67 ; set dmod 1 k
+h/pl 67 pes 67
+h/get/cont 68 hva
+scalef=0.20*[ymax1]/[ymax2]
+scalef=$format([scalef],f5.0)
+ytext=0.10*[ymax1]
+xtext=1.3*$HINFO(68,'MEAN')
+text [xtext] [ytext] '"x#'//[scalef] 0.2 ! l
+vec/op/vscale hva [scalef] hvb
+* h/del 68
+h/put/cont 68 hvb
+* set HTYP 357
+set DMOD 3
+* set HTYP -3
+h/pl 68 s 
+set DMOD 0
+* set HTYP -0
+atitle 'SIZE "M#d.c."N#' 'Events/Bin'
+opt linx; opt liny
+*
+*** Size
+* opt logx; opt logy
+* h/pl 67 ; set dmod 1 k
+* h/pl 67 pes 67
+* atitle 'total signal "M#d.c."N# (after cuts)' 'events/bin'
+opt linx; opt liny
+*
+*** Hadronicity
+* opt logy
+* hi/plot 70
+* atitle 'HADRONICITY '  'Events/Bin'
+* ymax1=$HINFO(70,'MAX')
+* ymax2=$HINFO(75,'MAX')
+* h/get/cont 75 hva
+* scalef=0.20*[ymax1]/[ymax2]
+* vec/op/vscale hva [scalef] hvb
+* h/put/cont 75 hvb
+* set HTYP -3
+* h/pl 75 s 
+* set HTYP -0
+* opt liny
+*
+*** Hadronicity (supercuts)
+* opt logy
+* hi/plot 75
+* atitle 'hadronicity (after cuts)'  'events/bin'
+* opt liny
+*
+*** Gain
+ymax1=$HINFO(80,'MAX')
+ymax2=$HINFO(82,'MAX')
+IF [ymax1] > 0 THEN
+*  opt logx
+*  hi/plot 80
+*  atitle 'MUON GAIN'  'Events/Bin'
+*  h/get/cont 82 hva
+*  scalef=0.75*[ymax1]/[ymax2]
+*  vec/op/vscale hva [scalef] hvb
+*  h/put/cont 82 hvb
+*  set HTYP -3
+*  h/pl 82 s
+*  set HTYP -0
+*  ymax2=$HINFO(85,'MAX')
+*  h/get/cont 85 hva
+*  scalef=0.75*[ymax1]/[ymax2]
+*  vec/op/vscale hva [scalef] hvb
+*  hi/create/1dhisto 86 ' ' 20 0. 100.0
+*  h/put/cont 86 hvb
+*  set HTYP -3
+*  hi/plot 86 s
+*  set HTYP -0
+*  opt linx
+*** Gain after hadronicity cut
+*  h/pl 85 s ; set dmod 1 k
+  opt fit
+  hi/fit 85 G
+  set dmod 1 k
+  h/pl 85 pes 85
+  atitle 'MUON GAIN'  'Events/Bin'
+  opt nfit
+ELSE	| If muon gain not calculated, print out totsig/length
+  null 0 16 0 16 AB
+ENDIF
+*** Length/size
+ymax1=$HINFO(86,'MAX')
+ymax2=$HINFO(87,'MAX')
+* opt logx
+hi/plot 86
+atitle 'LENGTH/SIZE'  'Events/Bin'
+h/get/cont 87 hva
+scalef=0.75*[ymax1]/[ymax2]
+scalef=$format([scalef],f5.0)
+vec/op/vscale hva [scalef] hvb
+h/put/cont 87 hvb
+set DMOD 2
+* set HTYP -3
+h/pl 87 s
+set DMOD 0
+* set HTYP -0
+* atitle 'gain (after cuts)'  'events/bin'
+ymax2=$HINFO(88,'MAX')
+h/get/cont 88 hva
+scalef=0.75*[ymax1]/[ymax2]
+scalef=$format([scalef],f5.0)
+vec/op/vscale hva [scalef] hvb
+* hi/create/1dhisto 88 ' ' 20 0. 100.0
+h/put/cont 88 hvb
+set DMOD 3
+* set HTYP -3
+hi/plot 88 s
+set DMOD 0
+* set HTYP -0
+opt linx
+*
+*** Muon veto
+opt logx
+hi/plot 89
+atitle 'Anticoin. Pulseheight' ' '
+opt linx
+*
+*** Neighbor trigger
+opt logy
+hi/plot 90 
+atitle 'Num. Adj. Triggering Tubes'  'events/bin'
+ymax1=$HINFO(90,'MAX')
+ymax2=$HINFO(95,'MAX')
+h/get/cont 95 hva
+scalef=0.20*[ymax1]/[ymax2]
+scalef=$format([scalef],f5.0)
+ytext=0.15*[ymax1]
+xtext=0.8*$HINFO(95,'MEAN')
+text [xtext] [ytext] '"x#'//[scalef] 0.2 ! r
+vec/op/vscale hva [scalef] hvb
+h/put/cont 95 hvb
+set DMOD 3
+* set HTYP -3
+hi/plot 95 s
+set DMOD 0
+* set HTYP -0
+* atitle 'Num. Adj. Triggering Tubes (after cuts)'  'events/bin'
+opt liny
+*
+/picture/print [1]_ql.ps
+pict/delete QLPLOT
+kuip/wait 'pausing for 10 sec' 10
+*
+* pict/create QLPLOT
+set VSIZ 0
+zone 2 3 1
+h/get/cont 17 trig
+exec quicklook4#whipcam trig
+atitle 'Times in Trigger  X "M#degrees"N# (after cuts)' 'Y "M#degrees"N#'
+exec quicklook4#whipcam ped
+atitle 'Pedestals   XM#deg"N#'  ' YM#deg"N#'
+exec quicklook4#whipcam pedvar
+atitle 'Pedestal Variances   XM#deg"N#'  ' YM#deg"N#'
+exec quicklook4#whipcam xr yr dped
+atitle 'Stars   XM#deg"N#'  ' YM#deg"N#'
+exec quicklook4#whipcam gain
+atitle 'Nitrogen Gains   XM#deg"N#'  ' YM#deg"N#'
+*** 2-d
+contour 99 10 2
+atitle ' X "M#degrees"N# (after cuts)' 'Y "M#degrees"N#'
+kuip/wait 'pausing for 4 sec' 4
+*
+* /picture/print [1]_pg.ps
+* pict/delete QLPLOT
+*
+* picture/delete *
+h/delete 0
+close 0
+return
+
+*************************************************************
+*
+MACRO whipcam 
+*	
+*
+*  Usage: exec quicklook4#whipcam [x y] [vec]
+*
+*  Plot vector "vec" of 109 values on the default x,y
+*  tube coordinates of the whipple camera, or those specified
+*  by the vectors "x" and "y"
+*
+vec/create x(109) R 
+vec/input x(1:20) _
+0.000000000 0.259000003 0.129999995 -0.129999995 -0.259000003 _
+-0.129999995 0.129999995 0.518000007 0.388999999 0.259000003 _
+0.000000000 -0.259000003 -0.388999999 -0.518000007 -0.388999999 _
+-0.259000003 0.000000000 0.259000003 0.388999999 0.777000010
+vec/input x(21:40) _ 
+0.647000015 0.518000007 0.388999999 0.129999995 -0.129999995 _
+-0.388999999 -0.518000007 -0.647000015 -0.777000010 -0.647000015 _
+-0.518000007 -0.388999999 -0.129999995 0.129999995 0.388999999 _
+0.518000007 0.647000015 1.036000013 0.906000018 0.777000010
+vec/input x(41:60) _
+0.647000015 0.518000007 0.259000003 0.000000000 -0.259000003 _
+-0.518000007 -0.647000015 -0.777000010 -0.906000018 -1.0360000 _
+-0.906000018 -0.777000010 -0.644999981 -0.518000007 -0.2590000 _
+0.000000000 0.259000003 0.518000007 0.644999981 0.777000010
+vec/input x(61:80) _
+0.906000018 1.294999957 1.164999962 1.036000013 0.906000018 _
+0.777000010 0.647000015 0.388999999 0.129999995 -0.129999995 _
+-0.388999999 -0.647000015 -0.777000010 -0.906000018 -1.0360000 _
+-1.164999962 -1.294999957 -1.164999962 -1.036000013 -0.9060000
+vec/input x(81:109) _
+-0.777000010 -0.647000015 -0.388999999 -0.130999997 0.1299999 _
+0.388999999 0.647000015 0.777000010 0.906000018 1.036000013 _
+1.164999962 1.294999957 1.164999962 1.036000013 0.259000003 _
+0.000000000 -0.259000003 -1.036000013 -1.164999962 -1.2949999 _
+-1.294999957 -1.164999962 -1.036000013 -0.259000003 0.0000000 _
+0.259000003 1.036000013 1.164999962 1.294999957
+
+vec/create y(109) R 
+vec/input y(1:20) _
+0.000000000 0.000000000 -0.224000007 -0.224000007 0.000000000 _
+0.224000007 0.224000007 0.000000000 -0.224000007 -0.449000001 _
+-0.449000001 -0.449000001 -0.224000007 0.000000000 0.224000007 _
+0.449000001 0.449000001 0.449000001 0.224000007 0.000000000
+vec/input y(21:40) _
+-0.224000007 -0.449000001 -0.672999978 -0.672999978 -0.6729999 _
+-0.672999978 -0.449000001 -0.224000007 0.000000000 0.224000007 _
+0.449000001 0.672999978 0.672999978 0.672999978 0.672999978 _
+0.449000001 0.224000007 0.000000000 -0.224000007 -0.449000001
+vec/input y(41:60) _
+-0.672999978 -0.897000015 -0.897000015 -0.897000015 -0.8970000 _
+-0.897000015 -0.672999978 -0.449000001 -0.224000007 0.0000000 _
+0.224000007 0.449000001 0.672999978 0.897000015 0.897000015 _
+0.897000015 0.897000015 0.897000015 0.672999978 0.449000001
+vec/input y(61:80) _
+0.224000007 0.000000000 -0.224000007 -0.449000001 -0.672999978 _
+-0.897000015 -1.121000051 -1.121000051 -1.121000051 -1.121000051 _
+-1.121000051 -1.121000051 -0.897000015 -0.672999978 -0.449000001 _
+-0.224000007 0.000000000 0.224000007 0.449000001 0.672999978
+vec/input y(81:109) _
+0.897000015 1.121000051 1.121000051 1.121000051 1.121000051 _
+1.121000051 1.121000051 0.897000015 0.672999978 0.449000001 _
+0.224000007 -0.449000001 -0.672999978 -0.897000015 -1.345999956 _
+-1.345999956 -1.345999956 -0.897000015 -0.672999978 -0.449000001 _
+0.449000001 0.672999978 0.897000015 1.345999956 1.345999956 _
+1.345999956 0.897000015 0.672999978 0.449000001 
+ 
+* vec/read x,y whip10m.coords
+graphics/attrib/sfais 1
+graphics/attrib/sfaci 10
+graphics/attrib/sfaci 6	
+null -1.7 1.7 -1.7 1.7 
+
+if [#].eq.0 then
+  do i=1,109
+	graphics/primitives/arc x([i]) y([i]) 0.124 0.124
+  	graphics/pr/text x([i]) y([i])-0.04 [i] .15 ! c	
+  enddo
+else
+  if [#].eq.3 then
+    vec/del x
+    vec/del y
+    vec/create x(109) R 
+    vec/create y(109) R 
+    vec/copy [1] x
+    vec/copy [2] y
+    vec/copy [3] adc
+    message 'Using x,y vectors from command line'
+  else
+    vec/copy  [1] adc
+  endif
+  vec/cre adcor(109) r
+  vec/copy adc adcor
+  sigma dmax=vmax(adc)
+  vec/op/vscale adc (0.124/dmax) adc
+  do i=1,109
+      graphics/primitives/arc x([i]) y([i]) 0 adc([i])	
+      graphics/primitives/arc x([i]) y([i]) 0.124 0.124
+*     graphics/pr/text x([i]) y([i])-0.04 [i] .15 ! c	
+  enddo
+  tdmax=dmax(1)
+  txt='0 to '//[tdmax]
+  graphics/pr/text 1.0 -1.5  [txt] .25 ! c	
+endif
+
+return
+

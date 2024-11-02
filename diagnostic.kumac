@@ -1,0 +1,374 @@
+*
+* diagnostic.kumac
+* MAC
+* 980929
+*
+* PAW kumac to generate read in diagnostic histogram file created by fz2red
+* Only does one file at a time, just as with quicklook.kumac.  
+*
+* Usage exec diagnostic gt4643
+*
+* 000228 MAC Added in Stephane LeBohec's relative gain calculation to the kumac
+*
+* Define options
+*
+*
+opt nbox             | no box around plot
+opt a4
+opt linx
+opt liny
+set mtyp 1           | marker type
+set xlab 1.2         | dist label to y-axis (default = 1.4)
+set ylab 0.6         | dist label to x-axis (default = 1.4)
+set xwin 1.7         | x-dist between plots (default = 2.0)
+set ywin 1.4         | y-dist between plots (default = 2.0)
+set asiz 0.22        | axis label size (default = 0.28)
+set xval 0.2         | x-dist to y bins (default = 0.4)
+set XMGL 2.0         | Margins (defualt = 2.0)     
+set XMGR 1.0
+set YMGL 1.5
+set YMGU 2.1
+set VSIZ 0.18
+set pmci 1
+set plci 1
+set txci 1
+set hcol 1
+set vfon -80
+set lfon -80
+opt ngri
+igset mtyp 1.
+comisdir='/usr/local/whipple/src/vpro/alphatot2/'   | Home dir. for sel.funcs
+dbdir='/usr/dbgt/'                                  | Data base dir.
+*------------------------------------------------------------------------------
+fname=[1]
+h/file 1 [fname]_d.hbook
+opt utit
+title 'Quicklook "J#'//[fname]//' '//$DATE
+set asiz 0.3
+igset mscf 0.3
+pic/create PLOT1
+zone 4 4
+*
+* Tracking records plots
+*
+h/plot 1
+atitle 'Track dev. (deg)' 'No. records'
+igset mtyp 20
+h/plot 2 p
+atitle 'Time (min)' 'El (deg)'
+h/plot 3 p
+atitle 'Time (min)' 'Az (deg)'
+* Don't plot these, the variables are never filled.
+*old h/plot 4 p
+*old atitle 'Time of run (min)' 'R.A. (deg)'
+*old h/plot 5 p
+*old atitle 'Time of run (min)' 'Dec. (deg)'
+*
+* Time plots
+*
+opt logy
+h/plot 11
+opt liny
+atitle 'GPS-scaler (ms)'
+null -4. 4. 0. 10. ABS
+set dmod 2
+gr/pr/line 0. 0. 0. 10.
+set dmod 1
+h/plot 12 p
+igset mtyp 1
+atitle 'Time of run (min)' 'GPS-scaler (ms)'
+v/cr ptot(1)
+v/cr pts(1000)
+h/get_vec/cont 13 pts
+sigma ptot=vsum(pts)
+xmax=$eval(ptot(1))
+if [xmax].gt.0. then
+ opt logy
+else
+ opt liny
+endif
+h/plot 13
+atitle 'Osc [n]-1.e7 (Hz)'
+*
+* Trigger plots
+*
+zone 2 4 4 s
+h/get_vec/cont 21 pts
+sigma ptot=vsum(pts)
+xmax=$eval(ptot(1))
+if [xmax].gt.0. then
+ opt logy
+else
+ opt liny
+endif
+h/plot 21
+opt liny
+atitle 'Trigger bits' 'Events when set'
+igset chhe 0.25
+igset tang 90.
+igset txal 30
+null -0.5 9.5 0. 10. ABS
+itx 0.25 9.6 'Ped'
+itx 1.25 9.6 'PST'
+itx 2.25 9.6 'Trg'
+itx 3.25 9.6 'Ped+PST'
+itx 4.25 9.6 'Ped+Trg'
+itx 5.25 9.6 'PST+Trg'
+itx 6.25 9.6 'Ped+PST+Trg'
+itx 7.25 9.6 'PST, No Trg'
+itx 8.25 9.6 'Trg, No PST'
+itx 9.25 9.6 'Nothing'
+*
+* HV plots
+*
+zone 3 4 7 s
+igset mtyp 20.
+set ksiz 0.03
+h/plot 31
+igset mtyp 1.
+set ksiz 0.28
+atitle 'PMT' 'HV (V)'
+h/plot 32
+atitle 'PMT' 'Anode current ([u]A)'
+*
+* Singles rate plots.
+*
+h/plot 41
+atitle 'PMT' 'Singles rate (Hz)'
+h/del 0
+close 1
+***************************************************************************
+* Relative gain calculation that Stephane LeBohec developed.
+* NOTE: The numbers generated are only relevant for zenith files.
+***************************************************************************
+zone 2 4 7 s
+opt liny
+opt logx
+opt tic
+opt grid
+*opt utitl
+set pass 3
+set vfon -10
+
+opt nbox
+
+ali/cr binnb 40               |No. of bins in histogram
+ali/cr p2max 600.0            |Upper bound of histogram
+ali/cr p2min 20.0             |Lower bound of histogram
+ali/cr nbpoints 31            |Num points in gain fit
+ali/cr gainmin 0.5            |Min. gain normalization
+ali/cr gainstep 0.05          |Gain step sizes
+ali/cr npfit 17               |No. of bins to use in chi2 min fit.
+ali/cr weigh 1.00
+ali/cr varr t10max3           |Ntuple name for max3
+ali/cr timeref t10livetime    |Ntuple name for livetime
+ali/cr ntplid 100             |Ntuple ID
+
+ve/cr gain(nbpoints) R
+ve/cr vchi(nbpoints) R
+ve/cr tdur(1) R
+
+* Open the reference distribution histogram file
+hi/file 2 [dbdir]ref_zen_gain.hbook
+ve/cr val1(binnb) R
+hi/get_vect/content 1 val1
+
+* Identify the location of the maximum of the distribution
+sigma imax1=lvmax(val1)
+
+* Open the current ntuple
+hi/file 1 [1].rz
+* Get the duration of the run for normalisation
+nt/loop ntplid [comisdir]duration.f
+sigma tdur=1/tdur
+
+*--------------------------------------------------------------------------
+* Here comes the relative gain calibration.
+*--------------------------------------------------------------------------
+do j=1,nbpoints
+   h/cr/1d 2 'Calibrate' binnb p2min p2max 
+
+* Pick a relative gain and normalize the bin contents by that value.
+   vect/input gain([j]:[j]) $sigma(([j]-1)*(gainstep)+(gainmin)) 
+   nt/proj 2  ntplid.((varr)/$sigma(gain([j]))) (weigh)
+
+* Renormalize the duration.
+   hi/op/add 2 2 2 $sigma(tdur) 0. E
+
+* Compare the count rates of the reference file to the current file for the
+* assumed gain.
+   h/cr/1d 3 'Difference' binnb p2min p2max
+   hi/op/sub 1 2 3 1.0 1.0 E
+
+* Feed vector with contents and errors of 3
+   ve/cr val(binnb) R
+   ve/cr err(binnb) R
+   ve/cr chi2(binnb) R
+   hi/get_vect/content 3 val
+   hi/get_vect/error   3 err
+
+* Compute the chi2 terms=((val/err)^2)
+   vector/operation/vdivide val err chi2
+   vector/operation/vmultiply chi2 chi2 chi2 
+
+* Seeks for the max of histo 2
+   ve/cr val2(binnb) R
+   hi/get_vect/content 2 val2
+   sigma imax2=lvmax(val2)
+*   vect/print imax2
+	
+* Identifies the rightmost maximum bin of the two
+   if imax1.gt.imax2 then
+      sigma itop=imax1
+   else 
+      sigma itop=imax2
+   endif
+*   vect/print itop
+
+* Computes the chi2 as the sum of terms starting 
+* 2 bins above the rightmost maximum
+   sigma optim=0
+   do i=itop+2,(binnb) 
+      sigma optim=optim+chi2([i])
+   enddo
+* Chi2 per dof
+   sigma optim=optim/((binnb)-(itop+1))
+*   ve/print gain([j])
+   vect/input vchi([j]:[j]) $sigma(optim) 
+*   ve/print vchi([j])
+
+
+   ve/del val 
+   ve/del val2 
+   ve/del err 
+   ve/del chi2
+   hi/del 2
+   hi/del 3
+enddo
+
+* Find the npfit lowest chi2 values to use for a fit to get the best
+* gain factor.
+ve/cr minchi(npfit) 
+do i=1,(npfit)
+  ve/inp minchi([i]) 1.
+enddo
+do i=1,(npfit)
+  do j=2,(nbpoints)
+    if vchi([j]).lt.vchi(minchi([i])) then
+      sigma tst=1
+      do k=1,npfit
+        if [j].eq.minchi([k]) then
+          sigma tst=0
+	endif
+      enddo
+      if tst.eq.1 then
+        ve/inp minchi([i]) [j]
+      endif
+    endif
+  enddo
+enddo
+
+* Create the vectors to be fitted and fill them
+ve/cr vxf(npfit)
+ve/cr vyf(npfit)
+ve/cr vef(npfit)
+do i=1,npfit
+   ve/input vxf([i]) $sigma(gain(minchi([i])))
+   ve/input vyf([i]) $sigma(vchi(minchi([i])))
+enddo
+
+sigma vef=vyf
+
+* Fit the chi2 data to find the minimum and the corresponding 
+ve/cr par(3) R
+ve/fit vxf vyf vef [comisdir]gain_fit.for 'N' 3 par
+
+* Now plot up the results of the fits, etc.
+opt linx
+opt liny
+*old zone 1 2
+*old fortran/file 66 gainfig1.ps
+*old meta 66 -113
+nul gainmin $sigma((nbpoints)*(gainstep)+(gainmin)) 0. 10.
+* Plot the chi2 points distribution and the fit result.
+GRAPHICS/HPLOT/SYMBOLS gain vchi nbpoints 24
+fun/plot [comisdir]gain_fit.for gainmin  (gainmin)+(nbpoints)*(gainstep) s
+atitl 'Relative Gain Value' '[h]^2!/n'
+
+v/cr rgain(1) r
+sigma rgain=exp(par(3))
+*old text 0.9 8.8  'Zenith run = '//[1] 0.4
+*old text 0.9 7.8  'Gain = '//$sigma(exp(par(3))) 0.4
+text 0.8 8.8  'Gain = '//$format($eval(rgain),f5.3) 0.4
+*text 0.9 7.8  'Gain = '//$sigma(sqrt(par(2)/par(3))) 0.4
+*text 0.9 7.8  'Gain = '//$sigma(1+par(3)) 0.4
+*old text 0.9 6.8 'Reference run = '//$HTITLE(1) 0.4
+text 0.8 7.8 'Ref. run = '//$HTITLE(1) 0.4
+
+* Now plot the two max3 distributions for the runs.
+*set pmci 4
+*set plci 3
+set txci 1
+opt logy
+opt logx
+cd //lun2
+*old set hcol 4
+igset mtyp 1.
+h/plot 1
+cd //lun1
+h/cr/1d 2 'Calibrate' binnb p2min p2max 
+nt/proj 2  ntplid.(varr) (weigh)
+hi/op/add 2 2 2 $sigma(tdur) 0. E
+*old set hcol 2
+*set dmod 2
+igset mtyp 31.
+h/plot 2 s
+*set dmod 1
+atitl 'max3' 'Event rate per bin (Hz)'
+opt linx
+opt liny
+null 0. 10. 0. 10. abs
+v/cr x(1) r 9.0
+v/cr y(1) r 8.8
+*gr/hp/symb 9.5 9.5 1 1
+gr/hp/symb x y 1 31 0.35
+text 5.8 8.5 'This run'  0.4
+*gr/hp/key 5. 9.5 31 'This run'
+*old close 66
+close 1
+close 2
+
+* Clean up the fiddly bits.
+ve/del GAIN
+ve/del VCHI
+ve/del VAL1
+ve/del TDUR
+ve/del x
+ve/del y
+ve/del rgain
+ve/del ptot
+ve/del minchi
+ve/del pts
+ve/del vxf
+ve/del vyf
+ve/del vef
+ve/del par
+
+hi/del 2
+hi/del 1
+
+*
+* Now print out the plot.
+*
+kuip/wait 'Pausing for 5 seconds' 5
+pic/print [fname]_dg.ps
+pic/del PLOT1
+
+opt htit
+set asiz 0.22
+igset mscf 1.0
+*
+* Done
+*
+return
+
